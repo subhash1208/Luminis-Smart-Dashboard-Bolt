@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, HomeIcon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Input from '../components/common/Input';
 import Button from '../components/common/Button';
+import toast from 'react-hot-toast';
 
 const LoginPage = () => {
+  const navigate = useNavigate();
   const { login, isLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -44,8 +46,15 @@ const LoginPage = () => {
     
     try {
       await login({ email, password });
-    } catch (error) {
+      // Login successful - navigation is handled in AuthContext
+    } catch (error: any) {
       console.error('Login error:', error);
+      // Display a more user-friendly error message
+      if (error.response && error.response.data && error.response.data.error) {
+        toast.error(error.response.data.error);
+      } else {
+        toast.error('Login failed. Please check your credentials and try again.');
+      }
     }
   };
 
@@ -124,6 +133,15 @@ const LoginPage = () => {
               Don't have an account?{' '}
               <Link to="/register" className="font-medium text-primary-600 hover:text-primary-500">
                 Sign up
+              </Link>
+            </p>
+          </div>
+          
+          <div className="text-center">
+            <p className="text-sm text-gray-600">
+              Need to verify your email?{' '}
+              <Link to="/verify-email" className="font-medium text-primary-600 hover:text-primary-500">
+                Verify email
               </Link>
             </p>
           </div>

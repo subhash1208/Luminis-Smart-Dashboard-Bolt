@@ -20,13 +20,11 @@ const NotFoundPage = () => {
         </p>
         
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Button
-            as={Link}
-            to="/"
-            leftIcon={<ArrowLeft className="w-4 h-4" />}
-          >
-            Back to Dashboard
-          </Button>
+          <Link to="/" className="inline-flex">
+            <Button leftIcon={<ArrowLeft className="w-4 h-4" />}>
+              Back to Dashboard
+            </Button>
+          </Link>
         </div>
       </div>
     </div>

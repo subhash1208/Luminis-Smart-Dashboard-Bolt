@@ -11,11 +11,11 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = getAccessToken();
-    
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    
+
     return config;
   },
   (error) => {
@@ -29,10 +29,15 @@ api.interceptors.response.use(
   (error) => {
     // Default error message
     let errorMessage = 'An error occurred. Please try again.';
-    
+
     if (error.response) {
-      // Handle specific error status codes
-      switch (error.response.status) {
+      const { status, data } = error.response;
+
+      switch (status) {
+        case 400:
+          // Prefer `data.error`, then `data.message`
+          errorMessage = data.error || data.message || errorMessage;
+          break;
         case 401:
           errorMessage = 'Session expired. Please log in again.';
           logout();
@@ -50,16 +55,14 @@ api.interceptors.response.use(
           errorMessage = 'Server error. Please try again later.';
           break;
         default:
-          // Use error message from response if available
-          if (error.response.data?.message) {
-            errorMessage = error.response.data.message;
-          }
+          // Fallback to any provided message/error
+          errorMessage = data.error || data.message || errorMessage;
       }
     } else if (error.request) {
       // Request was made but no response was received
       errorMessage = 'Network error. Please check your connection.';
     }
-    
+
     toast.error(errorMessage);
     return Promise.reject(error);
   }

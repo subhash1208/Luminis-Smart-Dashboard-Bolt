@@ -71,9 +71,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsAuth(true);
       setUser(getUserInfo());
       navigate('/dashboard');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
-      throw error;
+      
+      // Check if the error is due to unverified email
+      if (error.response && error.response.status === 400 && 
+          error.response.data.error && 
+          error.response.data.error.includes('Email not verified')) {
+        
+        // Show appropriate toast message
+        toast.error('Your email is not verified. Redirecting to verification page.');
+        
+        // Navigate to verification page with the email
+        navigate('/verify-email', { state: { email: credentials.email } });
+      } else {
+        // For other errors, just throw to be handled by the LoginPage
+        throw error;
+      }
     } finally {
       setIsLoading(false);
     }
@@ -97,6 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setIsLoading(true);
       await authService.verifyEmail(data);
+      toast.success('Email verified successfully! You can now log in.');
       navigate('/login');
     } catch (error) {
       console.error('Email verification error:', error);
