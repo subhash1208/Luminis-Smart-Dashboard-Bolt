@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, User, HomeIcon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Input from '../components/common/Input';
 import Button from '../components/common/Button';
+import toast from 'react-hot-toast';
 
 const RegisterPage = () => {
+  const navigate = useNavigate();
   const { register, isLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -65,8 +67,11 @@ const RegisterPage = () => {
         given_name: givenName,
         role: 'user'
       });
-    } catch (error) {
+      toast.success('Registration successful. Please verify your email.');
+      navigate('/verify-email', { state: { email } });
+    } catch (error: any) {
       console.error('Registration error:', error);
+      toast.error(error?.response?.data?.error || 'Registration failed. Please try again.');
     }
   };
 

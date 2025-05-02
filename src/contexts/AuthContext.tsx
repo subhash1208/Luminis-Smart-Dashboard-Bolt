@@ -1,123 +1,151 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import authService, { LoginCredentials, RegisterData } from '../api/authService';
-import { saveTokens, isAuthenticated, isTokenExpiringSoon, logout, getUserInfo } from '../utils/auth';
 import toast from 'react-hot-toast';
+import authService, { 
+  LoginCredentials, 
+  RegisterData, 
+  VerifyEmailData,
+  ResendVerificationData 
+} from '../api/authService';
+import { 
+  saveTokens, 
+  isAuthenticated, 
+  logout as clearSession, 
+  getUserInfo,
+  checkSession 
+} from '../utils/auth';
 
 interface AuthContextType {
   isAuthenticated: boolean;
+  isLoading: boolean;
   isSessionExpiringSoon: boolean;
-  userInfo: { id: string; email: string; givenName: string } | null;
+  user: any;
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
+  verifyEmail: (data: VerifyEmailData) => Promise<void>;
+  resendVerificationCode: (data: ResendVerificationData) => Promise<void>;
   logout: () => void;
-  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [isAuth, setIsAuth] = useState<boolean>(isAuthenticated());
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isSessionExpiringSoon, setIsSessionExpiringSoon] = useState<boolean>(false);
+  const [user, setUser] = useState<any>(getUserInfo());
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
-  const [userInfo, setUserInfo] = useState<{ id: string; email: string; givenName: string } | null>(null);
-  const [isSessionExpiringSoon, setIsSessionExpiringSoon] = useState(false);
 
-  // Check token expiration in intervals
   useEffect(() => {
-    const checkTokenExpiration = () => {
-      setIsSessionExpiringSoon(isTokenExpiringSoon());
+    // Initial check
+    const initializeAuth = async () => {
+      const valid = await checkSession();
+      setIsAuth(valid);
+      setUser(getUserInfo());
+      setIsLoading(false);
     };
 
-    // Check initially
-    checkTokenExpiration();
+    initializeAuth();
 
-    // Set interval to check every minute
-    const interval = setInterval(checkTokenExpiration, 60000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // Load user info from token on mount
-  useEffect(() => {
-    if (isAuthenticated()) {
-      const user = getUserInfo();
-      if (user) {
-        setUserInfo({
-          id: user.id,
-          email: user.email,
-          givenName: user.givenName
-        });
+    // Set up periodic session check
+    const intervalId = setInterval(async () => {
+      const valid = await checkSession();
+      if (!valid) {
+        handleLogout();
       }
-    }
+      setIsSessionExpiringSoon(!valid);
+    }, 60_000); // Check every minute
+
+    return () => clearInterval(intervalId);
   }, []);
 
-  // Login handler
-  const handleLogin = async (credentials: LoginCredentials) => {
-    setIsLoading(true);
+  const login = async (credentials: LoginCredentials) => {
     try {
-      const { accessToken, refreshToken, idToken } = await authService.login(credentials);
-      saveTokens(accessToken, refreshToken, idToken);
-      
-      const user = getUserInfo();
-      if (user) {
-        setUserInfo({
-          id: user.id,
-          email: user.email,
-          givenName: user.givenName
-        });
-      }
-      
-      toast.success('Logged in successfully');
-      navigate('/houses');
+      setIsLoading(true);
+      const response = await authService.login(credentials);
+      saveTokens(
+        response.accessToken,
+        response.refreshToken,
+        response.idToken
+      );
+      setIsAuth(true);
+      setUser(getUserInfo());
+      navigate('/dashboard');
     } catch (error) {
-      // Error is handled by axios interceptor
       console.error('Login error:', error);
+      throw error;
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Register handler
-  const handleRegister = async (data: RegisterData) => {
+  const register = async (data: RegisterData) => {
     setIsLoading(true);
     try {
       await authService.register(data);
-      toast.success('Registration successful. Please check your email for verification.');
-      navigate('/login');
+      toast.success('Registration successful. Please verify your email.');
+      navigate('/verify-email', { state: { email: data.email } });
     } catch (error) {
-      // Error is handled by axios interceptor
       console.error('Registration error:', error);
+      throw error; // rethrow to allow RegisterPage to handle it
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Logout handler
+  const verifyEmail = async (data: VerifyEmailData) => {
+    try {
+      setIsLoading(true);
+      await authService.verifyEmail(data);
+      navigate('/login');
+    } catch (error) {
+      console.error('Email verification error:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resendVerificationCode = async (data: ResendVerificationData) => {
+    try {
+      setIsLoading(true);
+      await authService.resendVerificationCode(data);
+    } catch (error) {
+      console.error('Resend verification error:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleLogout = () => {
-    logout();
-    setUserInfo(null);
-    setIsSessionExpiringSoon(false);
-    toast.success('Logged out successfully');
+    clearSession();
+    setIsAuth(false);
+    setUser(null);
     navigate('/login');
   };
 
   const value = {
-    isAuthenticated: isAuthenticated(),
+    isAuthenticated: isAuth,
+    isLoading,
     isSessionExpiringSoon,
-    userInfo,
-    login: handleLogin,
-    register: handleRegister,
-    logout: handleLogout,
-    isLoading
+    user,
+    login,
+    register,
+    verifyEmail,
+    resendVerificationCode,
+    logout: handleLogout
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-export const useAuth = () => {
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 };
+
+export default AuthContext;

@@ -8,6 +8,7 @@ import ProtectedRoute from './routes/ProtectedRoute';
 // Lazy loading pages for better performance
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'));
 const HouseListPage = lazy(() => import('./pages/HouseListPage'));
 const RoomListPage = lazy(() => import('./pages/RoomListPage'));
 const DeviceListPage = lazy(() => import('./pages/DeviceListPage'));
@@ -28,6 +29,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
           
           <Route path="/" element={<ProtectedRoute />}>
             <Route index element={<Navigate to="/houses" replace />} />

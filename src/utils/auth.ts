@@ -1,4 +1,5 @@
 import { jwtDecode } from 'jwt-decode';
+import authService from './../api/authService';
 
 interface TokenPayload {
   exp: number;
@@ -38,15 +39,15 @@ export const getIdToken = (): string | null => {
 // Check if user is authenticated (token exists and is not expired)
 export const isAuthenticated = (): boolean => {
   const token = getAccessToken();
-  
+
   if (!token) {
     return false;
   }
-  
+
   try {
     const decoded = jwtDecode<TokenPayload>(token);
     const currentTime = Math.floor(Date.now() / 1000);
-    
+
     return decoded.exp > currentTime;
   } catch (error) {
     return false;
@@ -56,15 +57,15 @@ export const isAuthenticated = (): boolean => {
 // Get time until token expiration in seconds
 export const getTimeUntilExpiration = (): number | null => {
   const token = getAccessToken();
-  
+
   if (!token) {
     return null;
   }
-  
+
   try {
     const decoded = jwtDecode<TokenPayload>(token);
     const currentTime = Math.floor(Date.now() / 1000);
-    
+
     return decoded.exp - currentTime;
   } catch (error) {
     return null;
@@ -80,11 +81,11 @@ export const isTokenExpiringSoon = (): boolean => {
 // Get user information from token
 export const getUserInfo = () => {
   const token = getIdToken();
-  
+
   if (!token) {
     return null;
   }
-  
+
   try {
     const decoded = jwtDecode<TokenPayload>(token);
     return {
@@ -103,4 +104,43 @@ export const logout = () => {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(ID_TOKEN_KEY);
+};
+
+// Check and refresh session if needed
+export const checkSession = async (): Promise<boolean> => {
+  // If not authenticated at all, return false immediately
+  if (!isAuthenticated()) {
+    return false;
+  }
+
+  // If token is expiring soon, try to refresh
+  if (isTokenExpiringSoon()) {
+    try {
+      const refreshToken = getRefreshToken();
+      
+      // If no refresh token exists, session is invalid
+      if (!refreshToken) {
+        return false;
+      }
+      
+      // Attempt to refresh the tokens
+      const response = await authService.refreshToken({ refreshToken });
+      
+      // Save the new tokens
+      saveTokens(
+        response.accessToken,
+        response.refreshToken,
+        response.idToken
+      );
+      
+      return true;
+    } catch (error) {
+      // If refresh fails, session is invalid
+      logout();
+      return false;
+    }
+  }
+  
+  // Token is valid and not expiring soon
+  return true;
 };
