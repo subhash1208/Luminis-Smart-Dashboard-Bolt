@@ -9,3 +9,26 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+// Add Amplify specific type augmentations if needed
+declare module 'aws-amplify' {
+  // This is a simplified version - update based on your Amplify version
+  export namespace Auth {
+    interface AuthConfig {
+      Cognito: {
+        userPoolId: string;
+        userPoolClientId: string;
+        loginWith?: {
+          username?: boolean;
+          email?: boolean;
+          phone?: boolean;
+        };
+        signUpVerificationMethod?: string;
+        authenticationFlowType?: string;
+        mfa?: {
+          status: string;
+        };
+      };
+    }
+  }
+}
