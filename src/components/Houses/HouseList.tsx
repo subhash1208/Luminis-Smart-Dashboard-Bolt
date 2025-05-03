@@ -1,4 +1,4 @@
-import { useState, useEffect } from'react';
+import { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import houseService, { House } from '../../api/houseService';
 import HouseCard from './HouseCard';
@@ -97,6 +97,8 @@ const HouseList = () => {
     );
   }
 
+  console.log('Houses data:', houses); // Debug log to see the data structure
+  
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -109,16 +111,16 @@ const HouseList = () => {
         </Button>
       </div>
 
-      {houses.length === 0? (
+      {houses.length === 0 ? (
         <EmptyState type="houses" />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {houses.map((house) => (
+          {houses.map((house, index) => (
             <HouseCard
-              key={house.id}
+              key={house.id || `house-${index}`} // Fallback to index if id is undefined
               house={house}
-              onUpdate={() => handleUpdate(house)}
-              onDelete={() => handleDelete(house)}
+              onUpdate={(h) => handleUpdate(h)}
+              onDelete={(h) => handleDelete(h)}
             />
           ))}
         </div>
@@ -129,18 +131,22 @@ const HouseList = () => {
         onClose={() => setIsAddModalOpen(false)}
         onAdd={handleAddHouse}
       />
-      <UpdateHouseModal
-        isOpen={isUpdateModalOpen}
-        onClose={() => setIsUpdateModalOpen(false)}
-        onUpdate={handleUpdateHouse}
-        house={selectedHouse}
-      />
-      <DeleteHouseModal
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
-        onDelete={handleDeleteHouse}
-        house={selectedHouse}
-      />
+      {selectedHouse && (
+        <>
+          <UpdateHouseModal
+            isOpen={isUpdateModalOpen}
+            onClose={() => setIsUpdateModalOpen(false)}
+            onUpdate={handleUpdateHouse}
+            house={selectedHouse}
+          />
+          <DeleteHouseModal
+            isOpen={isDeleteModalOpen}
+            onClose={() => setIsDeleteModalOpen(false)}
+            onDelete={handleDeleteHouse}
+            house={selectedHouse}
+          />
+        </>
+      )}
     </div>
   );
 };
